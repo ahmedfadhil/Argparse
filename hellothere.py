@@ -1,29 +1,61 @@
-import argparse
-import sys
+from multiprocessing import Pool
+import random
+import bs4 as bs
+import requests
+import string
+
+
+def random_starting_url():
+    starting = ''.join(random.SystemRandom().choice(string.ascii_lowercase) for _ in range(3))
+    url = ''.join(['http://', starting, '.com'])
+    return url
+
+
+def handle_local_links(url, link):
+    if link.startswith('/'):
+        return ''.join([url, link])
+
+    else:
+        return link
+
+
+def get_links(url):
+    try:
+        resp = requests.get(url)
+        soup = bs.BeautifulSoup(resp.text, 'lxml')
+        body = soup.body
+        links = [link.get('href') for link in body.find_all('a')]
+        links = [handle_local_links(url, link) for link in links]
+        links = [str(link.encode("ascii")) for link in links]
+        return links
+    except TypeError as e:
+        print(e)
+        print('Got a type error')
+        return []
+    except IndexError as e:
+        print(e)
+        print('Got index error')
+        return []
+    except AttributeError as e:
+        print(e)
+        print('Got attribute error')
+        return []
+    except Exception as e:
+        print(str(e))
+        return []
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--x', type=float, default=1.0, help="What is the first number")
-    parser.add_argument('--y', type=float, default=1.0, help="What is the second number")
-    parser.add_argument('--operation', type=str, default="mul", help="What operation would you like to do?")
-    args = parser.parse_args()
-    sys.stdout.write(str(calc(args)))
+    how_many = 10
+    p = Pool(processes=how_many)
+    parse_us = [random_starting_url() for _ in range(how_many)]
+    data = p.map(get_links, [link for link in parse_us])
+    data = [url for url_list in data for url in url_list]
+    p.close()
 
+    with open('urls.txt', 'w') as f:
+        f.write(str(data))
 
-def calc(args):
-    if args.operation == 'add':
-        return args.x + args.y
-    elif args.operation == 'sub':
-        return args.x - args.y
-    elif args.operation == 'mul':
-        return args.x * args.y
-    elif args.operation == 'div':
-        return args.x / args.y
 
 if __name__ == '__main__':
     main()
-
-
-
-
